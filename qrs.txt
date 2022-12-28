@@ -1,0 +1,72 @@
+sqlite3 todos.db
+.schema
+drop table (tablen)todos
+
+.schema
+.quit
+
+
+
+
+SELECT typeof(password) FROM Users
+
+
+
+pip install "passlib[bcrypt]"
+
+pip install python-multipart
+
+pip install "python-jose[cryptography]"
+
+import oauth2passwordbearer
+
+jwt is barer token  barer is type of token and authorization platform
+
+from datetime import datetime timedelta so we can add expiration to token itself
+
+
+a secret key is like the final level of security ona jwt, and its really the signature that goes with jwt token
+secret key may be what ever we want
+
+
+
+SECRET_KEY = "stakom6jotvinmer15#936"
+ALGORITHM="HS256"
+
+
+
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")  
+weare going to e using dependency which  is going to extract any data or anything from the authorization header
+
+
+
+Python timedelta() function is present under datetime library which is generally used for calculating differences in dates and also can be used for date manipulations in Python. It is one of the easiest ways to perform date manipulations. 
+
+
+
+_________________________________________
+
+
+routing
+
+from fastapi import APIRouter in aauth.py
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pin install jinja2
+pip install aiofiles
