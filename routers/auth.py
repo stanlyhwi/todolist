@@ -79,6 +79,7 @@ def authenticate_user(username:str, password:str,db):
 
     if not user:
         return False
+
     if not verify_password(password,user.hashed_password):
         return False
     return user
@@ -142,7 +143,7 @@ def login_for_access_token(response:Response, form_data: OAuth2PasswordRequestFo
     
 
     if not user:
-        False
+        return False
     # return "user validated"
 
     token_expires = timedelta(minutes=60)
@@ -150,19 +151,20 @@ def login_for_access_token(response:Response, form_data: OAuth2PasswordRequestFo
 
     response.set_cookie(key="access_token", value=token, httponly=True)
     
-    return user
+    return True
 
 
 
 @router.get("/",response_class=HTMLResponse)
 def authentication_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request":request})
+    return templates.TemplateResponse("login.html", {"request":request, "msg":"msg"})
 
 @router.post("/", response_class=HTMLResponse)
 async def login(request: Request, db:Session = Depends(get_db)):
     try:
         form = LoginForm(request)
         await form.create_oauth_form()
+
         response = RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
 
         validate_user_cookie = login_for_access_token(response=response, form_data=form, db=db)
@@ -171,6 +173,7 @@ async def login(request: Request, db:Session = Depends(get_db)):
             msg = "Incorrect Username or Password"
             return templates.TemplateResponse("login.html",{"request": request, "msg":msg})
         return response 
+        # return "Nothing"
 
     except HTTPException:
         msg="unknown error"
