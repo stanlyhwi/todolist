@@ -5,7 +5,12 @@
             Register
         </div>
         <div class="card-body">
-            <form>
+            {% if msg %}
+            <div class="alert alert-danger" role="alert">
+                {{msg}}
+            </div>
+            {% endif %}
+            <form method="POST" action="/auth/register">
                 <div class="form-row">
                     <div class ="form-group col-md-6">
                         <lable>email</lable>
@@ -22,7 +27,7 @@
                         <input type="text" class="form-control" name="firstname"required>
                     </div>
                     <div class="form-group col-md-6">
-                        <lable>Last Name</lable>
+                        <lable>Last name</lable>
                         <input type="text" class="form-control" name="Lastname"required>
                     </div>
                 </div>
@@ -32,7 +37,7 @@
 
                 </div>
                 <div clas="form-group">
-                    <lable>verify password</lable>
+                    <lable>password2</lable>
                     <input type="password" class="form-control" name="password2"required>
 
                 </div>
@@ -41,7 +46,7 @@
             </form>
         </div>
         <div class="card-footer text-muted">
-            <a href="#">Already have an account?</a>
+            <a href="/auth">Already have an account?</a>
 
         </div>
     </div>

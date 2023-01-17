@@ -3,7 +3,7 @@ sys.path.append("..")
 
 from starlette.responses import RedirectResponse
 
-from fastapi import FastAPI,Depends,HTTPException,status,APIRouter, Request,Response
+from fastapi import FastAPI,Depends,HTTPException,status,APIRouter, Request,Response,Form
 from pydantic import BaseModel
 from typing import Optional
 import models
@@ -23,12 +23,7 @@ ALGORITHM="HS256"
  
 templates = Jinja2Templates(directory="templates")
 
-class CreateUser(BaseModel):
-    username:str
-    email:Optional[str]
-    first_name:str
-    last_name:str
-    password:str
+
 
 bcrypt_context = CryptContext(schemes=["bcrypt"],deprecated="auto")
 
@@ -98,43 +93,33 @@ def create_access_token(username : str , user_id:int, expires_delta:Optional[tim
     return jwt.encode(encode,SECRET_KEY,algorithm=ALGORITHM)   #
 
 
-def get_current_user(token: str = Depends(oauth2_bearer)):
+async def get_current_user(request:Request):
 
     try:
+        token=request.cookies.get("access_token")
+        print(token)
+        if token is None:
+            print('inside none')
+            return None
+        print(1)    
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(2)
         username : str = payload.get("sub")
         user_id : int = payload.get("id")
+        print(username)
+        print(user_id)
 
         if username is None or user_id is None:
-            raise get_user_exception()
+            return "not found"
 
         return {"username": username,"id":user_id}
 
     except JWTError:
-        raise get_user_exception()
+        # raise HTTPException(status_code=404, detail="Notee Found")
+        # RedirectResponse(url="/logout-new", status_code=status.HTTP_302_FOUND)
+        # return {"sry":"tharshan"}
+        return None
 
-
-
-@router.post("/create/user")
-def create_new_user(create_user:CreateUser,db: Session = Depends(get_db)):
-    create_user_model = models.Users()
-    create_user_model.email=create_user.email
-    create_user_model.username =create_user.username
-    create_user_model.first_name=create_user.first_name
-    create_user_model.last_name=create_user.last_name
-
-
-    hash_password = get_password_hash(create_user.password)
-
-
-
-    create_user_model.hashed_password=hash_password
-    create_user_model.is_active=True 
-
-    db.add(create_user_model)
-    db.commit()
-
-    return {"successfull":"response"}
 
 @router.post("/token")
 def login_for_access_token(response:Response, form_data: OAuth2PasswordRequestForm = Depends(),db:Session=Depends(get_db)):
@@ -144,6 +129,7 @@ def login_for_access_token(response:Response, form_data: OAuth2PasswordRequestFo
 
     if not user:
         return False
+
     # return "user validated"
 
     token_expires = timedelta(minutes=60)
@@ -151,15 +137,42 @@ def login_for_access_token(response:Response, form_data: OAuth2PasswordRequestFo
 
     response.set_cookie(key="access_token", value=token, httponly=True)
     
-    return True
+    return response
 
 
 
 @router.get("/",response_class=HTMLResponse)
 def authentication_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request":request, "msg":"msg"})
+    return templates.TemplateResponse("login.html", {"request":request})
 
 @router.post("/", response_class=HTMLResponse)
+async def login(request: Request, db:Session = Depends(get_db)):
+    try:
+        form = LoginForm(request)
+        await form.create_oauth_form()
+
+        response = RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
+
+        validate_user_cookie = login_for_access_token(response=response, form_data=form, db=db)
+
+        if not validate_user_cookie:
+            msg = "Incorrect Username or Password"
+            return templates.TemplateResponse("login.html",{"request": request, "msg":msg})
+        return response 
+        # return "Nothing"
+
+    except HTTPException:
+        msg="unknown error"
+        return templates.TemplateResponse("login.html",{"request": request, "msg":msg}) 
+
+@router.get("/logout-new")
+def logout(request:Request):
+    msg = "Logout Successful"
+    response= templates.TemplateResponse("login.html",{"request":request, "msg":msg})
+    response.delete_cookie(key="access_token")
+    return response
+
+@router.post("/logout-new", response_class=HTMLResponse)
 async def login(request: Request, db:Session = Depends(get_db)):
     try:
         form = LoginForm(request)
@@ -182,29 +195,41 @@ async def login(request: Request, db:Session = Depends(get_db)):
 
 
 @router.get("/register",response_class=HTMLResponse)
-def registrationPage(request: Request):
+async def registrationPage(request: Request):
     return templates.TemplateResponse("register.html", {"request":request})
 
 
+@router.post("/register", response_class=HTMLResponse)
+async def register_user(request:Request,email:str = Form(...), username:str = Form(...),firstname:str = Form(...), Lastname:str = Form(...),password:str=Form(...), password2:str=Form(...),db:Session=Depends(get_db)):
+    val1=db.query(models.Users).filter(models.Users.username==username).first()
+        
+    val2=db.query(models.Users).filter(models.Users.email==email).first()
+
+    if password != password2 or val1 is not None or val2 is not None:
+        msg="correct your password / user already exist"
+        return templates.TemplateResponse("register.html",{"request":request, "msg":msg})
+
+   
+
+    
+    user_model = models.Users()
+    
+    user_model.username=username
+    user_model.email=email
+    user_model.first_name=firstname
+    user_model.last_name=Lastname
+
+    hash_password = get_password_hash(password)
+    user_model.hashed_password=hash_password
+    user_model.is_active= True
+    
+    db.add(user_model)
+    db.commit()
+
+    msg="User Successfully created"
+    RedirectResponse
+
+    # return templates.TemplateResponse("login.html",{"request":request,"msg":msg})
+    return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
 
 
-
-
-#exception
-def get_user_exception():
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="could not validate credentials",
-        headers={"WWW-Autenticate": "Bearer"}
-
-    )
-
-    return credentials_exception
-
-def token_exception():
-    token_exception_response= HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect username or password",
-        headers={"WWW-Authenticate":"Bearer"}
-    )
-    return token_exception_response
